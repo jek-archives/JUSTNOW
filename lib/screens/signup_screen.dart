@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Import SharedPreferences
 import '../widgets/custom_text_field.dart';
 import '../widgets/password_text_field.dart';
 import '../utils/gradient_background.dart';
 import '../widgets/logo_widget.dart';
+import 'email_verification_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   @override
@@ -25,7 +27,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   bool _isValidEmail(String email) {
-    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com\$');
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@gmail\.com$');
     return emailRegex.hasMatch(email);
   }
 
@@ -48,93 +50,126 @@ class _SignupScreenState extends State<SignupScreen> {
     });
   }
 
+  Future<void> _signUp() async {
+    String email = _emailController.text.trim();
+    String password = _passwordController.text.trim();
+
+    try {
+      UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Send verification email
+      await userCredential.user?.sendEmailVerification();
+
+      // Navigate to Email Verification Screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => EmailVerificationScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorText = e.message; // Set error message if signup fails
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: GradientBackground(
-        child: Stack(
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center, // Center content
+        child: SingleChildScrollView(
+          // Enable scrolling to prevent overflow
+          child: Container(
+            height: MediaQuery.of(context).size.height, // Ensure full height
+            child: Stack(
               children: [
-                LogoWidget(), // logo here
-                const SizedBox(height: 20),
-                const Text(
-                  "Sign Up",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    LogoWidget(),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Sign Up",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Column(
+                        children: [
+                          CustomTextField(
+                            controller: _emailController,
+                            label: "Email",
+                          ),
+                          if (_emailErrorText != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                _emailErrorText!,
+                                style: const TextStyle(
+                                    color: Colors.red, fontSize: 14),
+                              ),
+                            ),
+                          const SizedBox(height: 12),
+                          PasswordTextField(
+                            label: "Password",
+                            controller: _passwordController,
+                          ),
+                          const SizedBox(height: 12),
+                          PasswordTextField(
+                            label: "Confirm Password",
+                            controller: _confirmPasswordController,
+                          ),
+                          if (_errorText != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                _errorText!,
+                                style: const TextStyle(
+                                    color: Colors.red, fontSize: 14),
+                              ),
+                            ),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: () {
+                              _validateInputs();
+                              if (_errorText == null &&
+                                  _emailErrorText == null) {
+                                _signUp(); // Proceed with sign-up logic
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade300,
+                              minimumSize: const Size(double.infinity, 45),
+                            ),
+                            child: const Text("Get Started!",
+                                style: TextStyle(color: Colors.black)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 30),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Column(
-                    children: [
-                      CustomTextField(
-                        controller: _emailController,
-                        label: "Email",
-                      ),
-                      if (_emailErrorText != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            _emailErrorText!,
-                            style: const TextStyle(
-                                color: Colors.red, fontSize: 14),
-                          ),
-                        ),
-                      const SizedBox(height: 12),
-                      PasswordTextField(
-                        label: "Password",
-                        controller: _passwordController,
-                      ),
-                      const SizedBox(height: 12),
-                      PasswordTextField(
-                        label: "Confirm Password",
-                        controller: _confirmPasswordController,
-                      ),
-                      if (_errorText != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            _errorText!,
-                            style: const TextStyle(
-                                color: Colors.red, fontSize: 14),
-                          ),
-                        ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () {
-                          _validateInputs();
-                          if (_errorText == null && _emailErrorText == null) {
-                            // Proceed with sign-up logic
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade300,
-                          minimumSize: const Size(double.infinity, 45),
-                        ),
-                        child: const Text("Get Started!",
-                            style: TextStyle(color: Colors.black)),
-                      ),
-                    ],
+                Positioned(
+                  top: 50,
+                  left: 16,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back,
+                        size: 24, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ),
               ],
             ),
-            Positioned(
-              top: 50,
-              left: 16,
-              child: IconButton(
-                icon:
-                    const Icon(Icons.arrow_back, size: 24, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
